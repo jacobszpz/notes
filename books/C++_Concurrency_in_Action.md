@@ -312,56 +312,56 @@ void exclusive_operation_b()
       - Copy constructor of type T may throw an exception (when returning from an operation)
         so the value that has just been popped would be lost
       - Part of why `std::stack` separates these two calls
-      Some solutions:
+    - Some solutions:
         1. Passing a reference to receive the popped value
-	  ```
-	  std::vector<int> result;
-	  some_stack.pop(result); // by reference
-	  ```
-	  - May be expensive to construct an instance
-	  - May not be possible if constructor needs information not available at that time
-	  - Requires stored type to be assignable
-	2. Require a *no-throw* copy or move contsructor
-	  The presence of a *no-throw* copy or move constructor can be detected
-	  at compile time to restrict the stack (or data structure) to such types
-	  ```
-	  std::is_nothrow_copy_constructible
-	  std::is_nothrow_move_constructible
-	  ```
-	  - Quite restrictive, as there are many more types with copy constructors that can throw
-	    and no move constructors than those with *no-throw* copy or move constructors
-	3. Return a pointer to the item
-	  - Pointers can be freely copied without throwing
-	  - Requires means of managing the memory allocated to the object which may exceed cost
-	    of returning by value in some cases (e.g. int)
-	  - `std::shared_ptr` is a good choice for pointer
-	    - Avoids leaks, avoids calling new and delete, and full control of memory allocation
-	4. Provide 1 and either 2 or 3
-	  - More user freedom
-	```
-	void push(T new_value)
-	{
-          std::lock_guard<std::mutex> lock(m);
-	  data.push(new_value);
-	}
+          ```
+          std::vector<int> result;
+          some_stack.pop(result); // by reference
+          ```
+          - May be expensive to construct an instance
+          - May not be possible if constructor needs information not available at that time
+          - Requires stored type to be assignable
+        2. Require a *no-throw* copy or move contsructor
+          The presence of a *no-throw* copy or move constructor can be detected
+          at compile time to restrict the stack (or data structure) to such types
+          ```
+          std::is_nothrow_copy_constructible
+          std::is_nothrow_move_constructible
+          ```
+          - Quite restrictive, as there are many more types with copy constructors that can throw
+            and no move constructors than those with *no-throw* copy or move constructors
+        3. Return a pointer to the item
+          - Pointers can be freely copied without throwing
+          - Requires means of managing the memory allocated to the object which may exceed cost
+            of returning by value in some cases (e.g. int)
+          - `std::shared_ptr` is a good choice for pointer
+            - Avoids leaks, avoids calling new and delete, and full control of memory allocation
+        4. Provide 1 and either 2 or 3
+          - More user freedom
+          ```
+          void push(T new_value)
+          {
+            std::lock_guard<std::mutex> lock(m);
+            data.push(new_value);
+          }
+          std::shared_ptr<T> pop()
+          {
+            std::lock_guard<std::mutex> lock(m);
+            if (data.empty()) throw empty_stack();
+            std::shared_ptr<T> const res(std::make_shared<T>(data.top()));
+            data.pop();
+            return res;
+          }
+          ```
+          > Additional Reading: *Exceptional C++: 47 Engineering Puzzles, Programming Problems, and Solutions*, Sutter H.
+          > Additional Reading: *Exception Handling: A False Sense of Security*, Cargill T.
 
-	std::shared_ptr<T> pop()
-	{
-          std::lock_guard<std::mutex> lock(m);
-	  if (data.empty()) throw empty_stack();
-	  std::shared_ptr<T> const res(std::make_shared<T>(data.top()));
-	  data.pop();
-	  return res;
-	}
-	```
-        > Additional Reading: *Exceptional C++: 47 Engineering Puzzles, Programming Problems, and Solutions*, Sutter H.
-        > Additional Reading: *Exception Handling: A False Sense of Security*, Cargill T.
-	- Locking at too small a granularity may give rise to race conditions
-	- Locking at too large a granularity may eliminate any performance gains from concurrency
-	  - Linux used to have a singe global kernel lock
-	- One issue with fine-grained locks is that more than one mutex may be necessary
-	  - May produce another problem: *deadlock*
-	    - Rather than a race condition, two (or more threads) are waiting for each other, so none make any progress
+    - Locking at too small a granularity may give rise to race conditions
+    - Locking at too large a granularity may eliminate any performance gains from concurrency
+      - Linux used to have a singe global kernel lock
+    - One issue with fine-grained locks is that more than one mutex may be necessary
+      - May produce another problem: *deadlock*
+        - Rather than a race condition, two (or more threads) are waiting for each other, so none make any progress
 
 ### Deadlock
 - Each of a pair of threads is waiting on a lock that the other thread holds
@@ -378,10 +378,10 @@ void exclusive_operation_b()
       friend void swap(X& lhs, X& rhs)
       {
         if (&lhs == &rhs) return;
-	std::lock(lhs.m, rhs.m);
-	std::lock_guard<std::mutex> lock(lhs.m, std::adopt_lock);
-	std::lock_guard<std::mutex> lock(rhs.m, std::adopt_lock);
-	swap(lhs.detail, rhs.detail);
+        std::lock(lhs.m, rhs.m);
+        std::lock_guard<std::mutex> lock(lhs.m, std::adopt_lock);
+        std::lock_guard<std::mutex> lock(rhs.m, std::adopt_lock);
+        swap(lhs.detail, rhs.detail);
       }
       ```
       - Attempting to reacquire a lock on a mutex that is already held in the same thread is undefined behaviour
@@ -407,8 +407,8 @@ void exclusive_operation_b()
       - Can't hold two locks with the same hierarchy
       - Not part of STL but easy to implement
         - Can be used with `std::lock_guard` by implementing members `lock()`, `unlock()`, and `try_lock()`
-	- `try_lock()`: if the lock is currently held by another thread return false and don't wait
-	  - May be used by `std::lock()` internally
+        - `try_lock()`: if the lock is currently held by another thread return false and don't wait
+          - May be used by `std::lock()` internally
     - Detection in runtime but not timing dependent
     - Change in application design may eliminate causes of deadlock in the first place
 - Guidelines apply beyond locks
@@ -452,41 +452,40 @@ void exclusive_operation_b()
       if (!resource_ptr)
       {
         std::lock_guard<std::mutex> lk(resource_mutex);
-	if (!resource_ptr)
-	{
+        if (!resource_ptr)
+        {
           resource_ptr.reset(new some_resource);
-	}
+        }
       }
       resource_ptr->do_something(); // here resource may be only partially constructed - undefined behaviour
       ```
       - Solutions:
         - `std::once_flag` and `std::call_once`
-	  ```
-	  std::shared_ptr<some_resource> resource_ptr;
-	  std::once_flag resource_flag;
-
-	  void init_resource()...
-	  void foo()
-	  {
-            std::call_once(resource_flag, init_resource);
-	    resource_ptr->do_something();
-	  }
-	  ```
-	  Can also initialise class members
-	  ```
-	  std::call_once(resource_flag, &X::init_resource, this);
-	  - `std::once_flag` can't be copied or moved
-	  ```
-	- local static variable
-	  - Local variable declared with static is guaranteed by the standard to only be constructed on one thread (C++11 and above)
-	  ```
-	  class my_class;
-	  my_class& get_instance()
-	  {
-            static my_class instance; // thread-safe
-	    return instance;
-	  }
-	  ```
+        ```
+        std::shared_ptr<some_resource> resource_ptr;
+        std::once_flag resource_flag;
+        void init_resource()...
+        void foo()
+        {
+          std::call_once(resource_flag, init_resource);
+          resource_ptr->do_something();
+        }
+        ```
+        Can also initialise class members
+        ```
+        std::call_once(resource_flag, &X::init_resource, this);
+        ```
+        - `std::once_flag` can't be copied or moved
+      - local static variable
+        - Local variable declared with static is guaranteed by the standard to only be constructed on one thread (C++11 and above)
+        ```
+        class my_class;
+        my_class& get_instance()
+        {
+          static my_class instance; // thread-safe
+          return instance;
+        }
+        ```
 2. Rarely updated data structures
 - Some structures, such as cache of DNS entries may not be updated for a very long time - sometimes years
 - Using a mutex for these is overly pessimistic, since it prevents concurrency in reading the data
